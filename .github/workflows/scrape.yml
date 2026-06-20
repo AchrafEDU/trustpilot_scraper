@@ -1,0 +1,121 @@
+name: Production Scraper Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_processes:
+        description: 'Number of parallel processes'
+        required: false
+        default: '2'
+      max_parts:
+        description: 'Maximum number of CSV parts to process in this run'
+        required: false
+        default: '2'
+      rerun_failed:
+        description: 'Rerun only failed companies'
+        type: boolean
+        required: false
+        default: false
+      hf_repo_id:
+        description: 'Hugging Face Dataset repository ID (OIDC / Trusted Publishers)'
+        required: false
+        default: ''
+  push:
+    branches: [main, master]
+  schedule:
+    #Runs at 10:14pm local time (21:14 UTC) on June 15, 2026
+    - cron: '14 21 15 6 *'
+    # Runs every 5 hours
+    - cron: '0 */5 * * *'
+
+concurrency:
+  group: trustpilot-scraper
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  HF_REPO_ID: "axrafTic/trustpilot" # Replace with your Hugging Face dataset identifier
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright Browsers and System Dependencies
+        run: |
+          python -m playwright install --with-deps chromium
+
+      - name: Run Scraper
+        env:
+          PYTHONUNBUFFERED: "1"
+          HF_TOKEN: ${{ secrets.HG_ACCESS_TOKEN }}
+        run: |
+          FLAGS=""
+          
+          NUM_PROCS="${{ github.event.inputs.num_processes || '2' }}"
+          MAX_PARTS="${{ github.event.inputs.max_parts || '2' }}"
+          RERUN_FAILED="${{ github.event.inputs.rerun_failed || 'false' }}"
+          HF_REPO="${{ github.event.inputs.hf_repo_id || env.HF_REPO_ID }}"
+          
+          FLAGS="-p $NUM_PROCS"
+          if [ "$MAX_PARTS" != "" ] && [ "$MAX_PARTS" != "all" ]; then
+            FLAGS="$FLAGS --max-parts $MAX_PARTS"
+          fi
+          if [ "$RERUN_FAILED" = "true" ]; then
+            FLAGS="$FLAGS --rerun-failed"
+          fi
+          if [ "$HF_REPO" != "" ]; then
+            FLAGS="$FLAGS --hf-repo-id $HF_REPO"
+          fi
+          
+          # Limit execution to 4.5 hours (16200 seconds) to avoid GitHub Actions 6h limit and cron overlap
+          FLAGS="$FLAGS --max-duration 16200"
+          
+          echo "Running: python trustpilot_scraper.py $FLAGS"
+          python trustpilot_scraper.py $FLAGS
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add results/
+          
+          if ! git diff --cached --quiet; then
+            git commit -m "Update scraping progress [skip ci]"
+            
+            # Pull and push with retry loop to handle concurrent repository updates gracefully
+            success=false
+            for i in {1..5}; do
+              echo "Attempt $i: Pulling latest changes and pushing..."
+              if git pull --rebase origin ${{ github.ref_name }} && git push origin ${{ github.ref_name }}; then
+                success=true
+                break
+              fi
+              echo "Attempt $i failed. Retrying in 10 seconds..."
+              sleep 10
+            done
+            
+            if [ "$success" = false ]; then
+              echo "Failed to push updates after 5 attempts."
+              exit 1
+            fi
+          else
+            echo "No changes to commit"
+          fi

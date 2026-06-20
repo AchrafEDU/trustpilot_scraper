@@ -1,0 +1,11 @@
+cleaned_company_names.csv
+data_locale/cleaned_company_names.csv
+.agents
+.ruff_cache
+data
+skills-lock.json
+__pycache__/
+*.log
+.pytest_cache/
+results/*.csv
+.env

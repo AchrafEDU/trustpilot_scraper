@@ -1,0 +1,49 @@
+name: Short-term Scraper Test
+
+on:
+  # push:
+  #   branches: [main, master]
+  # pull_request:
+  #   branches: [main, master]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright Browsers and System Dependencies
+        run: |
+          python -m playwright install --with-deps chromium
+
+      - name: Run Scraper Test
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python trustpilot_scraper.py --input-dir test_input_dir --output-dir test_results --num-processes 1 --max-parts 1
+
+      - name: Test Hugging Face Push
+        env:
+          HF_TOKEN: ${{ secrets.HG_ACCESS_TOKEN }}
+        run: |
+          echo "Test Hugging Face authentication" > file.txt
+          hf upload axrafTic/trustpilot file.txt file.txt --repo-type dataset

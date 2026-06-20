@@ -1,0 +1,9 @@
+playwright
+playwright-stealth
+beautifulsoup4
+tenacity
+pyrate-limiter
+ruff
+mypy
+loguru
+huggingface_hub

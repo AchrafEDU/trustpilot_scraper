@@ -19,6 +19,32 @@ from src.scraper import BotBlockException, fetch_page, search_company
 from src.rate_limiter import global_rate_limiter
 
 
+def load_env() -> None:
+    """Loads environment variables from .env if present and maps HG_ACCESS_TOKEN to HF_TOKEN."""
+    if os.path.exists(".env"):
+        try:
+            with open(".env", "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k and v and k not in os.environ:
+                            os.environ[k] = v
+        except Exception as e:
+            logger.warning(f"Failed to load .env file: {e}")
+
+    # Fallback/mapping for HG_ACCESS_TOKEN
+    if "HG_ACCESS_TOKEN" in os.environ and "HF_TOKEN" not in os.environ:
+        os.environ["HF_TOKEN"] = os.environ["HG_ACCESS_TOKEN"]
+
+
+load_env()
+
+
 def parse_args():
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(description="Multi-processed Async Trustpilot Scraper")

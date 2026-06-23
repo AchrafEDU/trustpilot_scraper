@@ -124,8 +124,9 @@ def download_results_from_hf(hf_repo_id: str, output_csv: str, part_num: int) ->
         filename = f"trustpilot_results_part_{part_num}.csv"
         try:
             logger.info(f"[Part {part_num}] Local results CSV not found. Checking Hugging Face dataset: {hf_repo_id}")
+            token = os.environ.get("HF_TOKEN")
             downloaded_path = hf_hub_download(
-                repo_id=hf_repo_id, filename=filename, repo_type="dataset", local_dir=os.path.dirname(output_csv)
+                repo_id=hf_repo_id, filename=filename, repo_type="dataset", local_dir=os.path.dirname(output_csv), token=token
             )
             if downloaded_path != output_csv:
                 if os.path.exists(output_csv):
@@ -142,7 +143,9 @@ def upload_results_to_hf(hf_repo_id: str, output_csv: str, part_num: int) -> Non
         filename = f"trustpilot_results_part_{part_num}.csv"
         try:
             logger.info(f"[Part {part_num}] Uploading results to Hugging Face dataset: {hf_repo_id}")
-            api = HfApi()
+            token = os.environ.get("HF_TOKEN")
+            api = HfApi(token=token)
+            api.create_repo(repo_id=hf_repo_id, repo_type="dataset", exist_ok=True)
             api.upload_file(path_or_fileobj=output_csv, path_in_repo=filename, repo_id=hf_repo_id, repo_type="dataset")
             logger.info(f"[Part {part_num}] Successfully uploaded {filename} to Hugging Face. Removing local copy.")
             os.remove(output_csv)

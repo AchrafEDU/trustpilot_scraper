@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from loguru import logger
 from playwright.async_api import BrowserContext, async_playwright
 from huggingface_hub import HfApi, hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 
 from src.checkpoint import CheckpointManager
 from src.models import Business
@@ -126,15 +127,24 @@ def download_results_from_hf(hf_repo_id: str, output_csv: str, part_num: int) ->
             logger.info(f"[Part {part_num}] Local results CSV not found. Checking Hugging Face dataset: {hf_repo_id}")
             token = os.environ.get("HF_TOKEN")
             downloaded_path = hf_hub_download(
-                repo_id=hf_repo_id, filename=filename, repo_type="dataset", local_dir=os.path.dirname(output_csv), token=token
+                repo_id=hf_repo_id,
+                filename=filename,
+                repo_type="dataset",
+                local_dir=os.path.dirname(output_csv),
+                token=token,
             )
-            if downloaded_path != output_csv:
-                if os.path.exists(output_csv):
-                    os.remove(output_csv)
-                os.rename(downloaded_path, output_csv)
+            norm_downloaded = os.path.abspath(os.path.normpath(downloaded_path))
+            norm_output = os.path.abspath(os.path.normpath(output_csv))
+            if norm_downloaded != norm_output:
+                if os.path.exists(norm_output):
+                    os.remove(norm_output)
+                os.rename(norm_downloaded, norm_output)
             logger.info(f"[Part {part_num}] Successfully downloaded {filename} from Hugging Face.")
-        except Exception as e:
+        except (EntryNotFoundError, RepositoryNotFoundError) as e:
             logger.info(f"[Part {part_num}] No pre-existing results file found on Hugging Face: {e}")
+        except Exception as e:
+            logger.error(f"[Part {part_num}] Failed to check/download pre-existing results from Hugging Face: {e}")
+            raise
 
 
 def upload_results_to_hf(hf_repo_id: str, output_csv: str, part_num: int) -> None:

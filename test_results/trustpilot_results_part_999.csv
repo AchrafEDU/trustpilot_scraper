@@ -1,0 +1,4 @@
+business_url,business_name,category,address,phone_number,email,website_url,rating,review_count,review_summary,company_details,source_url,is_claimed,social_media_links,five_star_percentage,one_star_percentage,location_country,latest_review_date,latest_review_text
+https://fr.trustpilot.com/review/www.google.com,Google,Moteur de recherche,,,,https://www.google.com,"2,3",9988,,,google,False,,49 %,38 %,GB,2026-06-07T19:53:45.000Z,"Depuis que Google a activé les fonctionnalités IA dans Chrome, mon PC rame de manière visible. L'utilisation de la RAM a clairement augmenté même avec peu d'onglets ouverts. J'ai désactivé certaines options dans les paramètres mais l'impact reste là. C'est dommage parce que Chrome était déjà gourmand en ressources avant ça. J'espère qu'ils optimisent ça dans les prochaines mises à jour.
+
+"

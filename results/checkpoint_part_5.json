@@ -1,4 +1,5 @@
 {
   "current_file": "cleaned_company_names_part_5.csv",
-  "processed_rows": 96500
+  "processed_rows": 100000,
+  "completed": true
 }
